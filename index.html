@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>محاكاة صوت محرك السيارة</title>
+<meta name="description" content="محاكاة صوت محرك السيارة تتبع سرعتك الحقيقية عبر GPS">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#161b26">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- TeslaSound: open source, MIT License. Copy, modify and reuse any part freely. See LICENSE -->
+<style>
+  :root { --bg:#161b26; --panel:#1f2736; --line:#34405a; --ink:#e8ecf4; --dim:#93a0ba; --amber:#ffb347; --red:#ff5a5f; --blue:#7aa2f7; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; min-height:100%; background:var(--bg); color:var(--ink); font-family:"Segoe UI",Tahoma,"Noto Sans Arabic",system-ui,sans-serif; }
+  body { padding:max(12px,env(safe-area-inset-top)) 14px 14px; }
+  main { max-width:1500px; margin:0 auto; display:grid; gap:12px; }
+  header { display:flex; align-items:center; gap:12px; }
+  .flag { width:40px; height:auto; flex:none; border-radius:3px; box-shadow:0 0 0 1px #ffffff30; }
+  h1 { font-size:clamp(1.15rem,2.4vw,1.7rem); margin:0; font-weight:700; }
+  .sub { color:var(--dim); font-size:.9rem; margin:2px 0 0; }
+  .dash { display:grid; gap:12px; }
+  @media (min-width:900px) { .dash { grid-template-columns:1.6fr 1fr; align-items:start; } .side { height:calc(100vh - 96px); display:flex; flex-direction:column; min-height:0; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; }
+  .dials { display:grid; grid-template-columns:1fr minmax(70px,.28fr) 1fr; align-items:center; gap:6px; }
+  .dial { position:relative; margin-bottom:6px; } .dial canvas { width:min(100%,42vh); height:auto; display:block; margin:0 auto; } .dial .num { padding:0; }
+  .num { position:absolute; inset:71% 0 auto 0; text-align:center; pointer-events:none; }
+  .num b { font-size:clamp(1.4rem,3.2vw,2.7rem); font-variant-numeric:tabular-nums; display:block; line-height:1; }
+  .num span { color:var(--dim); font-size:clamp(.7rem,1.2vw,.95rem); }
+  .mid { text-align:center; } .mid small { color:var(--dim); font-size:.8rem; display:block; }
+  #gearN { font-size:clamp(2.2rem,5vw,4rem); font-weight:700; color:var(--amber); display:inline-block; }
+  #gearN.pop { animation:pop .35s ease-out; }
+  @keyframes pop { 0% { transform:scale(1.7); opacity:.4; } 100% { transform:scale(1); opacity:1; } }
+  .gps { margin-top:10px; color:var(--dim); font-size:.8rem; } .gps b { color:var(--ink); }
+  .stage { margin-top:6px; text-align:center; }
+  #hero { width:min(100%,560px,58vh); margin:0 auto; } #hero svg { width:100%; height:auto; display:block; filter:drop-shadow(0 8px 14px #0008); }
+  .cname b { font-size:1.25rem; } .cname span { display:block; color:var(--dim); font-size:.85rem; margin-top:2px; min-height:1.2em; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:8px; flex:1 1 auto; min-height:110px; overflow:auto; align-content:start; }
+  .ctl { flex:none; } .sliders { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+  .tile { background:#151b28; border:2px solid var(--line); border-radius:12px; padding:6px 4px 8px; cursor:pointer; text-align:center; font-size:.8rem; min-height:92px; }
+  .tile img { width:100%; height:auto; display:block; } .tile.sel { border-color:var(--amber); background:#2a2417; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  .btn { padding:16px; border-radius:12px; border:1px solid var(--line); background:#151b28; font:inherit; color:inherit; font-size:1.05rem; cursor:pointer; min-height:56px; }
+  .btn.on { background:var(--blue); color:#0d1320; border-color:var(--blue); font-weight:600; }
+  .btn:focus-visible, .tile:focus-visible, input:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+  .sl { display:grid; grid-template-columns:4.4rem 1fr 2.2rem; align-items:center; gap:8px; font-size:.9rem; margin-top:10px; }
+  .sl label { color:var(--dim); } .sl output { color:var(--dim); text-align:end; font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:var(--amber); direction:ltr; height:28px; }
+  #manual { display:none; } #manual.show { display:grid; }
+  #status { font-size:.9rem; color:var(--dim); text-align:center; min-height:1.3em; } #status.err { color:var(--red); }
+  footer { color:var(--dim); font-size:.78rem; text-align:center; line-height:1.7; padding-bottom:6px; }
+  #hero { position:relative; }
+  #hero img { width:100%; height:auto; display:block; filter:drop-shadow(0 8px 14px #0008); }
+  .pedals { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
+  .pedals.gpsonly { grid-template-columns:1fr; }
+  .pd { padding:20px 4px; border-radius:12px; border:2px solid var(--line); background:#151b28; color:inherit; font:inherit; font-size:1rem; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; min-height:64px; }
+  .pd.gas { border-color:var(--amber); color:var(--amber); } .pd.brk { border-color:var(--red); color:var(--red); }
+  .pd.down, .pd.on { background:var(--amber); color:#1b1305; } .pd.brk.down { background:var(--red); color:#1b0507; }
+  .hide { display:none !important; }
+</style></style>
+</head>
+<body>
+<main>
+  <header>
+    <svg class="flag" viewBox="0 0 30 20" role="img" aria-label="علم العراق">
+      <rect width="30" height="6.67" fill="#ce1126"/><rect y="6.67" width="30" height="6.66" fill="#fff"/><rect y="13.33" width="30" height="6.67" fill="#000"/>
+      <text x="15" y="11.9" text-anchor="middle" font-size="4.6" font-weight="700" fill="#007a3d" font-family="'Noto Naskh Arabic','Amiri','Traditional Arabic',serif">الله أكبر</text>
+    </svg>
+    <div><h1>محاكاة صوت محرك السيارة</h1><p class="sub">اضغط «تشغيل الصوت» ثم قُد: الصوت يتبع سرعتك الحقيقية من الـ GPS.</p></div>
+  </header>
+
+  <div class="dash">
+    <section class="panel">
+      <div class="dials">
+        <div class="dial"><canvas id="spdCv" width="600" height="600" aria-label="عدّاد السرعة"></canvas><div class="num"><b id="spdNum">0</b><span>كم/س</span></div></div>
+        <div class="mid"><small>الغيار</small><b id="gearN">–</b></div>
+        <div class="dial"><canvas id="rpmCv" width="600" height="600" aria-label="عدّاد الدوران"></canvas><div class="num"><b id="rpmNum">0</b><span>دورة/دقيقة</span></div></div>
+      </div>
+      <div class="gps" style="text-align:center" id="gpsInfo">GPS: <b id="gpsQ">–</b></div>
+      <div class="stage"><div id="hero"></div><div class="cname"><b id="cname" dir="auto"></b><span id="tagline" dir="ltr"></span></div></div>
+    </section>
+
+    <aside class="panel side">
+      <div class="tiles" id="tiles"></div>
+      <div class="ctl">
+      <div class="row">
+        <button class="btn" id="power" type="button">تشغيل الصوت</button>
+        <button class="btn" id="modeBtn" type="button">الوضع: GPS</button>
+      </div>
+      <div class="pedals gpsonly" id="pedals">
+        <button class="pd" id="pRev" type="button">REV</button>
+        <button class="pd brk hide" id="pBrk" type="button">فرامل</button>
+        <button class="pd gas hide" id="pGas" type="button">بنزين</button>
+        <button class="pd hide" id="pHold" type="button">تثبيت</button>
+      </div>
+      <div class="sliders">
+      <div class="sl"><label for="vol">الصوت</label><input id="vol" type="range" min="0" max="1" step="0.01" value="0.8"><output id="volO">80</output></div>
+      <div class="sl"><label for="chr">الطابع</label><input id="chr" type="range" min="0" max="1" step="0.01" value="0.6"><output id="chrO">60</output></div>
+      <div class="sl"><label for="crk">الفرقعة</label><input id="crk" type="range" min="0" max="1" step="0.01" value="1"><output id="crkO">100</output></div>
+      <div class="sl"><label for="int">الحدّة</label><input id="int" type="range" min="0" max="1" step="0.01" value="0.5"><output id="intO">50</output></div>
+      </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="status" role="status"></div>
+  <footer>
+    <div id="offline"></div>
+    <div>مشروع مفتوح المصدر برخصة MIT — يحق لك نسخه أو أخذ أي جزء منه وتعديله ونشره.</div>
+    <div>الموقع يُعالَج داخل المتصفح فقط ولا يُرسل إلى أي مكان. لا تتعامل مع الشاشة أثناء القيادة.</div>
+  </footer>
+</main>
+
+<script src="js/cars.js"></script>
+<script src="js/engine-dsp.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/vehicle.js"></script>
+<script src="js/gps.js"></script>
+<script src="js/thruster-fx.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var clamp = function (x, a, b) { return Math.max(a, Math.min(b, x)); };
+  var cars = (window.MOTORSOUND_CARS || []).filter(function (c) { return c.engine && c.vehicle && !c.soon; });
+  var REAL = { 'gt3': 1, 'haunted-hearse': 1, 'hellcat': 1, 'v8-muscle': 1, 'tesla-roadster-thrust': 1 };   // real pictures; the rest are drawings
+  function pic(id) { return 'cars/' + id + (REAL[id] ? '.webp' : '.svg'); }
+  var status = $('status'), audio = new EngineAudio(), fx = new ThrusterFx();
+  function setStatus(m, err) { status.textContent = m || ''; status.className = err ? 'err' : ''; }
+
+  var car, cfg, veh, smax = 260, powered = false, mode = 'gps', lastClutch = 0;
+  var pedal = { gas: 0, brake: 0, hold: false, rev: 0 };
+
+  // ---------- GPS (original gps.js) ----------
+  var GPS_TXT = { waiting: 'بانتظار إشارة الـ GPS…', stale: 'فُقدت إشارة الـ GPS — تُثبَّت آخر سرعة.',
+    denied: 'تم رفض إذن الموقع. اسمح بالموقع لهذا الموقع ثم أعد التشغيل، أو استخدم وضع التجربة.',
+    error: 'الـ GPS غير متاح حالياً. اخرج لمكان مفتوح أو استخدم وضع التجربة.', unsupported: 'هذا المتصفح لا يدعم الموقع. استخدم وضع التجربة.' };
+  var gps = new GpsSpeed(function (g) {
+    if (mode !== 'gps' || !powered) return;
+    var bad = g.status === 'denied' || g.status === 'error' || g.status === 'unsupported';
+    setStatus(g.status === 'ok' ? 'الـ GPS يعمل — ' + (g.method === 'doppler' ? 'قياس مباشر للسرعة' : 'السرعة من الموقع') : GPS_TXT[g.status] || '', bad);
+  });
+
+  // ---------- car + picture ----------
+  var heroImg = null, heroSvg = null, wheels = [];
+  function showHero(i, withFx, tile) {
+    var id = car.id, box = $('hero'); fx.stopFlip(); heroImg = heroSvg = null; wheels = [];
+    if (REAL[id]) {
+      var im = new Image(); im.alt = ''; im.src = pic(id); box.replaceChildren(im); heroImg = im;
+      if (withFx && car.selectFx === 'thrusterFlip') {                 // the Roadster blows smoke and backflips on its thrusters
+        fx.flip(im, function () { audio.boost(1.5, 0.8); }); if (tile) fx.smokeBurst(tile);
+      }
+    } else {
+      fetch(pic(id)).then(function (r) { return r.text(); }).then(function (t) {
+        if (car.id !== id) return;
+        box.innerHTML = t; heroSvg = box.firstChild;
+        wheels = Array.prototype.map.call(heroSvg.querySelectorAll('.wheel'), function (w) { return { el: w, cx: w.getAttribute('data-cx'), cy: w.getAttribute('data-cy') }; });
+      }).catch(function () {});
+    }
+  }
+  function pick(i, withFx, tile) {
+    car = cars[i]; cfg = car.engine; veh = new Vehicle(car); veh.intensity = +$('int').value;
+    smax = Math.max(160, Math.ceil((car.vehicle.maxSpeedKmh || 260) / 20) * 20);
+    $('tagline').textContent = car.tagline || ''; $('cname').textContent = car.name;
+    faceDirty = true; showHero(i, withFx, tile);
+    Array.prototype.forEach.call(document.querySelectorAll('.tile'), function (t, k) { t.classList.toggle('sel', cars[k] === car); });
+  }
+  cars.forEach(function (c, i) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'tile';
+    b.innerHTML = '<img alt="" src="' + pic(c.id) + '"><div>' + c.name + '</div>';
+    b.addEventListener('click', function () { pick(i, true, b); audio.setEngine(); if (powered) powerOn(); });
+    $('tiles').appendChild(b);
+  });
+
+  // ---------- animated dials (static faces cached; needles on springs) ----------
+  var A0 = Math.PI * 0.75, A1 = Math.PI * 2.25;
+  var sCtx = $('spdCv').getContext('2d'), rCtx = $('rpmCv').getContext('2d');
+  var faceS = document.createElement('canvas'), faceR = document.createElement('canvas'), faceDirty = true, SM = {}, RM = {};
+  faceS.width = faceS.height = faceR.width = faceR.height = 600;
+  var SP = { s: { x: 0, v: 0 }, r: { x: 0, v: 0 } }, sweepT = 0;
+  function dialFace(face, max, unit, div, redFrom) {
+    var W = face.width, c = face.getContext('2d'), cx = W / 2, R = W * 0.4;
+    var M = { cx: cx, cy: cx, R: R, max: max, ang: function (v) { return A0 + (A1 - A0) * clamp(v / max, 0, 1); } };
+    c.clearRect(0, 0, W, W); c.lineWidth = 20; c.lineCap = 'butt';
+    c.strokeStyle = '#2b3550'; c.beginPath(); c.arc(cx, cx, R, A0, A1); c.stroke();
+    if (redFrom) { c.strokeStyle = '#ff5a5f'; c.beginPath(); c.arc(cx, cx, R, M.ang(redFrom), A1); c.stroke(); }
+    c.fillStyle = c.strokeStyle = '#93a0ba'; c.lineWidth = 3; c.font = '600 26px "Segoe UI",Tahoma,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    for (var v = 0; v <= max + 0.1; v += unit / 2) {
+      var a = M.ang(v), maj = Math.abs(v / unit - Math.round(v / unit)) < 1e-6, r2 = R - (maj ? 42 : 30);
+      c.beginPath(); c.moveTo(cx + Math.cos(a) * (R - 18), cx + Math.sin(a) * (R - 18)); c.lineTo(cx + Math.cos(a) * r2, cx + Math.sin(a) * r2); c.stroke();
+      if (maj) c.fillText(String(Math.round(v / div)), cx + Math.cos(a) * (R - 74), cx + Math.sin(a) * (R - 74));
+    }
+    return M;
+  }
+  function buildFaces() {
+    SM = dialFace(faceS, smax, smax > 260 ? 40 : 20, 1, 0);
+    var rmax = Math.ceil(cfg.redlineRpm * 1.08 / 1000) * 1000; RM = dialFace(faceR, rmax, rmax > 12000 ? 2000 : 1000, 1000, cfg.redlineRpm);
+  }
+  function drawDial(c, face, M, val, jit) {
+    c.clearRect(0, 0, 600, 600); c.drawImage(face, 0, 0);
+    var f = clamp(val / M.max, 0, 1), col = 'hsl(' + Math.round(215 - 215 * f) + ',90%,62%)';
+    c.save(); c.shadowColor = col; c.shadowBlur = 22; c.lineWidth = 20; c.lineCap = 'butt'; c.strokeStyle = col;
+    c.beginPath(); c.arc(M.cx, M.cy, M.R, A0, M.ang(val)); c.stroke(); c.restore();
+    var n = M.ang(val) + (jit || 0);
+    c.save(); c.shadowColor = '#ffb347'; c.shadowBlur = 14; c.strokeStyle = '#ffb347'; c.lineWidth = 6; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(M.cx - Math.cos(n) * 26, M.cy - Math.sin(n) * 26); c.lineTo(M.cx + Math.cos(n) * (M.R - 26), M.cy + Math.sin(n) * (M.R - 26)); c.stroke(); c.restore();
+    c.fillStyle = '#ffb347'; c.beginPath(); c.arc(M.cx, M.cy, 13, 0, 6.2832); c.fill();
+  }
+  function spring(o, target, dt) { for (var t = dt; t > 0; t -= 0.016) { var h = Math.min(0.016, t); o.v += (140 * (target - o.x) - 15 * o.v) * h; o.x += o.v * h; } }
+  function ease(x) { return x * x * (3 - 2 * x); }
+
+  // ---------- loop: original Vehicle drives the synthesizer ----------
+  var last = performance.now(), wheelDeg = 0, shown = {}, paramAcc = 0, FRAC = 0;
+  function setText(id, v) { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } }
+  function frame(now) {
+    var dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (mode === 'gps') { var r = gps.read(); veh.update(dt, { source: 'gps', speed: r.speed, accel: r.accel, rev: pedal.rev }); }
+    else veh.update(dt, { source: 'demo', gas: pedal.gas, brake: pedal.brake, hold: pedal.hold, rev: pedal.rev });
+    while (veh.clicks.length) audio.click(veh.clicks.shift());                     // gear lever clicks
+    if (veh.clutch !== lastClutch) { lastClutch = veh.clutch; audio.clutch(veh.clutch); }
+    paramAcc += dt;
+    if (paramAcc >= 0.032) {
+      paramAcc = 0;
+      audio.setParams({ rpm: veh.rpm, load: veh.load, overrun: veh.overrun, cut: veh.cut, character: +$('chr').value, crackle: +$('crk').value,
+        whinePitch: 1, whineLevel: 1, speed: veh.speed, rev: veh.revPedal });
+    }
+    // thrusters: the picture blasts exactly when the jets roar
+    var thr = 0;
+    if (cfg.type === 'thruster' && powered && veh.startT >= EngineDSP.thrustStartS) thr = EngineDSP.thrust(veh.load, veh.revPedal, (cfg.sound && cfg.sound.onset) || 0);
+    fx.frame(now, thr, veh.revPedal > 0.5 ? 1 : 0, veh.speed, cfg.type === 'thruster' ? heroImg : null, car.nozzle);
+
+    if (faceDirty) { buildFaces(); faceDirty = false; }
+    var tS = veh.speed * 3.6, tR = veh.rpm;
+    if (sweepT >= 0) { sweepT += dt; var u = sweepT / 1.8; if (u >= 1) sweepT = -1; else { var k = ease(u < 0.5 ? u * 2 : 2 - u * 2); tS = k * smax; tR = k * RM.max; } }
+    spring(SP.s, tS, dt); spring(SP.r, tR, dt);
+    var jit = veh.rpm > cfg.redlineRpm * 0.98 && sweepT < 0 ? (Math.random() - 0.5) * 0.05 : 0;
+    drawDial(sCtx, faceS, SM, SP.s.x, 0); drawDial(rCtx, faceR, RM, SP.r.x, jit);
+    setText('spdNum', String(Math.round(sweepT >= 0 ? SP.s.x : veh.speed * 3.6)));
+    setText('rpmNum', String(Math.round((sweepT >= 0 ? SP.r.x : veh.rpm) / 10) * 10));
+    var gl = veh.gearLabel();
+    if (shown.gear !== gl) { shown.gear = gl; var ge = $('gearN'); ge.textContent = gl; ge.classList.remove('pop'); void ge.offsetWidth; ge.classList.add('pop'); }
+    setText('gpsQ', mode === 'gps' ? (gps.accuracy != null ? Math.round(gps.accuracy) + ' م' + (gps.rateHz ? ' · ' + gps.rateHz.toFixed(0) + ' Hz' : '') : '–') : 'وضع التجربة');
+    var amp = powered ? 0.4 + 2.4 * clamp(veh.rpm / cfg.redlineRpm, 0, 1) : 0, hb = $('hero');
+    if (heroSvg) {
+      wheelDeg = (wheelDeg + (veh.speed / 0.34) * dt * 57.3) % 360;
+      for (var i = 0; i < wheels.length; i++) wheels[i].el.setAttribute('transform', 'rotate(' + wheelDeg.toFixed(1) + ' ' + wheels[i].cx + ' ' + wheels[i].cy + ')');
+    }
+    hb.style.transform = amp && !(fx.flipping) ? 'translateY(' + ((Math.random() - 0.5) * amp).toFixed(2) + 'px)' : '';
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- controls ----------
+  var dspDone = false;
+  var dspReady = fetch('js/engine-dsp.js').then(function (r) { return r.text(); }).then(function (t) {
+    window.ENGINE_DSP_URL = URL.createObjectURL(new Blob([t], { type: 'text/javascript' }));
+  }).catch(function () {}).then(function () { dspDone = true; });
+  function keepAwake() { try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(function () {}); } catch (e) {} }
+  function powerOn() {
+    setStatus('جارٍ تجهيز الصوت…'); audio.setVolume(+$('vol').value);
+    if (mode === 'gps') gps.start();
+    keepAwake(); sweepT = 0;
+    return (dspDone ? Promise.resolve() : dspReady).then(function () { return audio.start(cfg); }).then(function () {
+      powered = true; veh.start();                                           // engine cranks and catches
+      $('power').textContent = 'إيقاف الصوت'; $('power').classList.add('on');
+      setStatus(mode === 'gps' ? 'الصوت يعمل — بانتظار إشارة الـ GPS… (' + audio.kind + ')' : 'الصوت يعمل — وضع التجربة (' + audio.kind + ')');
+      if (mode === 'gps') gps.onStatus(gps);
+    }, function (e) { setStatus('تعذّر تشغيل الصوت: ' + e.message, true); });
+  }
+  function powerOff() { audio.stop(0); gps.stop(); veh.stop(); powered = false; $('power').textContent = 'تشغيل الصوت'; $('power').classList.remove('on'); setStatus(''); }
+  $('power').addEventListener('click', function () { powered ? powerOff() : powerOn(); });
+  $('modeBtn').addEventListener('click', function () {
+    mode = mode === 'gps' ? 'test' : 'gps';
+    $('modeBtn').textContent = 'الوضع: ' + (mode === 'gps' ? 'GPS' : 'تجربة');
+    ['pBrk', 'pGas', 'pHold'].forEach(function (id) { $(id).classList.toggle('hide', mode === 'gps'); });
+    $('pedals').classList.toggle('gpsonly', mode === 'gps');
+    pedal.gas = pedal.brake = pedal.rev = 0; pedal.hold = false; $('pHold').classList.remove('on');
+    var run = powered; veh.reset(); veh.running = run; veh.startT = 99;
+    if (powered) { if (mode === 'gps') { gps.start(); setStatus('بانتظار إشارة الـ GPS…'); } else { gps.stop(); setStatus('الصوت يعمل — وضع التجربة'); } }
+  });
+  function hold(btn, key, val) {                                              // press-and-hold pedals
+    var set = function (on) { pedal[key] = on ? val : 0; btn.classList.toggle('down', on); audio.resumeIfNeeded(); };
+    btn.addEventListener('pointerdown', function (e) { btn.setPointerCapture(e.pointerId); set(true); });
+    btn.addEventListener('pointerup', function () { set(false); }); btn.addEventListener('pointercancel', function () { set(false); });
+    return set;
+  }
+  var setGas = hold($('pGas'), 'gas', 1), setBrk = hold($('pBrk'), 'brake', 1), setRev = hold($('pRev'), 'rev', 1);
+  $('pHold').addEventListener('click', function () { pedal.hold = !pedal.hold; this.classList.toggle('on', pedal.hold); });
+  var KEYS = { ArrowUp: setGas, ArrowDown: setBrk, Space: setRev };
+  function key(e, on) {
+    var t = e.target && e.target.tagName, f = KEYS[e.code];
+    if (!f || t === 'SELECT' || t === 'INPUT') return;
+    e.preventDefault(); if (!(on && e.repeat)) f(on);
+  }
+  window.addEventListener('keydown', function (e) { key(e, true); }); window.addEventListener('keyup', function (e) { key(e, false); });
+  [['vol', 'volO'], ['chr', 'chrO'], ['crk', 'crkO'], ['int', 'intO']].forEach(function (p) {
+    var el = $(p[0]), upd = function () { $(p[1]).textContent = Math.round(el.value * 100); if (p[0] === 'vol') audio.setVolume(+el.value); if (p[0] === 'int' && veh) veh.intensity = +el.value; };
+    el.addEventListener('input', upd); upd();
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && powered) { keepAwake(); audio.resumeIfNeeded(); } });
+  if (!EngineAudio.supported()) setStatus('هذا المتصفح لا يدعم Web Audio.', true);
+
+  pick(0, false);
+  requestAnimationFrame(frame);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(function () { return navigator.serviceWorker.ready; }).then(function () {
+      $('offline').textContent = '✓ جاهزة للعمل بدون إنترنت';
+    }).catch(function () { $('offline').textContent = 'العمل بدون إنترنت غير متاح في هذا المتصفح.'; });
+  }
+})();
+</script>
+</body>
+</html>
