@@ -1,6 +1,6 @@
 /* TeslaSound service worker: caches the whole app so it runs offline after the first visit.
  * To force an update for everyone after you change files, bump CACHE. */
-var CACHE = 'teslasound-v5';
+var CACHE = 'teslasound-v6';
 var FILES = ['./', 'index.html', 'manifest.webmanifest', 'js/cars.js', 'js/engine-dsp.js', 'js/audio.js', 'js/vehicle.js', 'js/gps.js', 'js/thruster-fx.js', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'LICENSE', 'cars/audi-rs6.svg', 'cars/city-shifter.svg', 'cars/electric-zen.svg', 'cars/ferrari-enzo.svg', 'cars/ferrari-v12.svg', 'cars/gt3.webp', 'cars/haunted-hearse.webp', 'cars/hellcat.webp', 'cars/lamborghini-urus.svg', 'cars/lamborghini-veneno.svg', 'cars/nissan-gtr-nismo-r35.svg', 'cars/slipstream.svg', 'cars/tesla-roadster-thrust.webp', 'cars/v8-muscle.webp'];
 
 self.addEventListener('install', function (e) {
